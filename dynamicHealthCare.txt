@@ -1,0 +1,115 @@
+*** Settings ***
+Library           Selenium2Library
+Library           OperatingSystem
+Library           String
+Library           doFil.py
+Variables         config.py
+Resource          Common.txt
+
+*** Test Cases ***
+AddCategories
+    Open Browser    http://dynamicdentalhealthcare.com/dentals/    ${browser}
+    Input Text    //input[@name='username']    ${username}
+    Input Text    //input[@name='password']    ${pwd}
+    Click Element    //input[@name='submit']
+    @{categories}=    Split String    ${CategoryNames}    ,
+    ${elemsCount}    Get Length    ${categories}
+    : FOR    ${i}    IN RANGE    1    ${elemsCount}
+    \    Go To    http://dynamicdentalhealthcare.com/dentals/Admin/category
+    \    Input Text    //input[@name='category_name']    ${categories[${i}]}
+    \    Click Element    //span[@class='select2-selection__arrow']
+    \    Click Element    //li[contains(text(),'BRAND STORE')]
+    \    Click Element    //input[@name='submit']
+    \    Wait Until Element Is Visible    //div[@class='alert alert-success']
+
+AddProducts
+    [Tags]    K
+    Sleep    1m
+    ${contents}=    Get File    ${CURDIR}/op.txt
+    @{lines}=    Split to lines    ${contents}
+    : FOR    ${line}    IN    @{lines}
+    \    ${stat}    ${pstring}    Run Keyword If    '${line}'<>'DONE'    AddProduct    ${line}
+    \    ...    ELSE    Continue For Loop
+    \    Wait Until Keyword Succeeds    3m    1s    GetLock
+    \    Run Keyword IF    ${fileLock}==0    Set Global Variable    ${fileLock}    2
+    \    Run Keyword IF    ${fileLock}==2    Replace_line_in_file    ${CURDIR}/op.txt    ${line}    DONE
+    \    Run Keyword IF    ${fileLock}==2    Set Global Variable    ${fileLock}    0
+    \    ${tm}=    Get Time
+    \    Append To File    ${CURDIR}/Log.txt    ${tm} - ${line}
+    ${EMPTY}
+
+*** Keywords ***
+GetVariantNames
+    [Arguments]    ${pvariantsCount}
+    ${x}=    Set Variable    ${EMPTY}
+    : FOR    ${INDEX}    IN RANGE    1    ${pvariantsCount}
+    \    ${temp}=    Get Text    //table[@id='super-product-table']/tbody[${INDEX}]/tr/td[contains(@class,'col variant')]
+    \    ${x}=    Run Keyword If    '${x}'=='${EMPTY}'    Set Variable    ${temp}
+    \    ...    ELSE    Catenate    ${x}    |    ${temp}
+    [Return]    ${x}
+
+AddVarient
+    [Arguments]    @{variantsList}
+    ${elemsCount}=    Get Length    ${variantsList}
+    Open Browser    http://dynamicdentalhealthcare.com/dentals/    ${browser}
+    Input Text    //input[@name='username']    admin
+    Input Text    //input[@name='password']    login
+    Click Element    //input[@name='submit']
+    : FOR    ${i}    IN RANGE    0    ${elemsCount}
+    \    Go To    http://dynamicdentalhealthcare.com/dentals/Admin/add_variants
+    \    ${variantName}=    Strip String    ${variantsList[${i}]}
+    \    Input Text    //input[@name='variants']    ${variantName}
+    \    Click Element    //input[@name='submit']
+    \    Wait Until Element Is Visible    //div[@class='alert alert-success']    10s
+
+ScrollAndClickButton
+    [Arguments]    ${locator}
+    : FOR    ${i}    IN RANGE    1    100
+    \    Execute JavaScript    window.scrollBy(0,100)
+    \    ${stat}    ${val}    Run Keyword And Ignore Error    Element Should Be Visible    ${locator}
+    \    Run Keyword If    '${stat}'=='PASS'    Click Element    ${locator}
+    \    Exit For Loop If    '${stat}'=='PASS'
+
+AddProduct
+    [Arguments]    ${pstring}
+    ${pstringArr}=    Split String    ${pstring}    ::
+    ${pname}=    Set Variable    ${pstringArr[0]}
+    ${pprice}=    Set Variable    ${pstringArr[1]}
+    ${pcontent}=    Set Variable    ${pstringArr[2]}
+    ${pvariants}=    Set Variable    ${pstringArr[3]}
+    ${variantStringLen}=    Get Length    ${pvariants}
+    @{pvariants}=    Split String    ${pvariants}    |
+    Run Keyword If    ${variantStringLen}>4    AddVarient    ${pvariants}
+    ${pimgs}=    Set Variable    ${pstringArr[4]}
+    @{pimgs}=    Split String    ${pimgs}    |
+    Open Browser    http://dynamicdentalhealthcare.com/dentals/    ${browser}
+    Input Text    //input[@name='username']    admin
+    Input Text    //input[@name='password']    login
+    Click Element    //input[@name='submit']
+    Go To    http://dynamicdentalhealthcare.com/dentals/Admin/add_product
+    Execute Javascript    document.getElementById('selected').innertext=' \ \ \ ANA'
+    Input Text    //input[@name='actual_product_data']    ${pname}
+    Input Text    //input[@name='p_price']    ${pprice}
+    Input Text    //textarea[@name='p_content']    ${pcontent}
+    Input Text    //input[@name='current_scheme']    Check Deals
+    ${imgCount}=    Get Length    ${pimgs}
+    : FOR    ${i}    IN RANGE    0    ${imgCount}
+    \    ${j}=    Evaluate    ${i}+2
+    \    ${fileUpload}=    Strip String    ${pimgs[${i}]}
+    \    Choose File    //form[@id='contact-form']/div/div[1]/div[${j}]/input[@type='file']    ${CURDIR}/img/${fileUpload}
+    ${variantCount}=    Get Length    ${pvariants}
+    : FOR    ${i}    IN RANGE    0    ${variantCount}
+    \    ${variantName}=    Strip String    ${pvariants[${i}]}
+    \    Run Keyword If    '${variantName}'=='${EMPTY}'    Exit For Loop
+    \    ...    ELSE    find&SelectVariant    ${variantName}
+    ScrollAndClickButton    //input[@id='checkss']
+
+find&SelectVariant
+    [Arguments]    ${elementText}
+    Click Element    //button[@class='btn btn-success dropdown-toggle varr']
+    ${a}=    Get Matching Xpath Count    //ul[@id='myUL']/li/a
+    : FOR    ${i}    IN RANGE    1    ${a}
+    \    Execute JavaScript    window.scrollBy(0,100)
+    \    ${stat}    ${val}    Run Keyword And Ignore Error    Element Should Be Visible    //a[text()='${elementText}']/input
+    \    Run Keyword If    '${stat}'=='PASS'    Click Element    //a[text()='${elementText}']/input
+    \    Exit For Loop If    '${stat}'=='PASS'

@@ -1,0 +1,4 @@
+*** Keywords ***
+GetLock
+    ${result}=    Evaluate    ${fileLock}==0
+    Run Keyword If    '${result}'=='False'    FAIL
