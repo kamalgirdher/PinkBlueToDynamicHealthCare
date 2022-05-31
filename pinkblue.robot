@@ -6,11 +6,13 @@ Library           doFil.py
 Variables         config.py
 Variables         brands.py
 Resource          Common.txt
+NOT IN USE
 
 *** Variables ***
 ${browser}        chrome
 
 *** Test Cases ***
+NOT IN USE
 GetPB
     [Tags]    K
     Remove Files    ${CURDIR}/img/*.*
